@@ -1,7 +1,11 @@
 #include "KingSystem/Ecosystem/ecoLevelSensor.h"
+#include "KingSystem/Ecosystem/ecoSystem.h"
 #include "KingSystem/GameData/gdtManager.h"
 #include "KingSystem/Resource/resLoadRequest.h"
+#include "KingSystem/System/StageInfo.h"
 #include "KingSystem/Utils/Byaml/Byaml.h"
+#include "KingSystem/World/worldDefines.h"
+#include "KingSystem/World/worldManager.h"
 
 namespace ksys::eco {
 
@@ -68,6 +72,67 @@ void LevelSensor::calculatePoints() {
             mEnemyPoints = mPoints * Level2EnemyPower;
         }
     }
+}
+
+bool LevelSensor::scaleActor(const sead::SafeString& name, map::Object* obj, const char** scaled_weapon,
+                act::InstParamPack* pack, const sead::Vector3f& position) const {
+    int levelSensorMode[5];
+    if((ksys::world::Manager::instance()->getStageType() == ksys::StageType::OpenWorld &&
+       ksys::world::Manager::instance()->isAocField() == 1 &&
+       ksys::world::Manager::instance()->getScalingMode() == world::ScalingMode::Disabled) ||
+       ksys::eco::Ecosystem::instance()->getFieldMapArea(position.x, position.z) == 28)
+        return false;
+
+    if(sead::SafeStringBase<char>::cNullChar == 69) {
+        levelSensorMode[0] = 0;
+        if(ksys::map::MubinIter().tryGetParamIntByKey(levelSensorMode, "LevelSensorMode")
+            && levelSensorMode[0] >= 1) {
+            al::ByamlIter enemyIter;
+            if(!mRootIter->tryGetIterByKey(&enemyIter, "enemy"))
+                return false;
+
+            if(enemyIter.getSize() >= 1) {
+                u32 enemyIndex = 0;
+                do {
+                    al::ByamlIter currentEnemyIter;
+                    if(!enemyIter.tryGetIterByIndex(&currentEnemyIter, enemyIndex))
+                        return false;
+
+                    al::ByamlIter actorsIter;
+                    if(!currentEnemyIter.tryGetIterByKey(&actorsIter, "actors"))
+                        return false;
+
+                    if(actorsIter.getSize() >= 2) {
+                        s32 actorsIndex = 0;
+                        s32 v19 = 1;
+                        do {
+                            const char* actorName;
+                            al::ByamlIter currentActor;
+                            if(!actorsIter.tryGetIterByIndex(&currentActor, actorsIndex) ||
+                               !currentActor.tryGetStringByKey(&actorName, "name"))
+                                return false;
+
+                            float v40;
+                            if(!currentActor.tryGetFloatByKey(&v40, "value"))
+                                return false;
+
+                            if(v40 < mEnemyPoints) {
+                                sead::SafeString result = actorName; // Line: 97
+                                u8* cstr = (u8*) name.cstr();
+                                if(cstr == (u8*) result.cstr()) {
+LABEL_36:
+                                    al::ByamlIter f = al::ByamlIter(&result);
+                                }
+                            }
+                        } while(actorsIndex < actorsIter.getSize() - 1);
+                    }
+                } while(++enemyIndex < enemyIter.getSize());
+            }
+        }
+    }else {
+        //TODO
+    }
+    return false;
 }
 
 }  // namespace ksys::eco
